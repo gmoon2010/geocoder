@@ -1,1 +1,13 @@
-Home
+<h2>Geocoder</h2>
+
+<%= form_tag('/geocode_pages/geocode', multipart: true) do %>
+  <p>Choose File to Geocode:</p>
+  <%= file_field_tag(:file, multiple: false, accept: 'application/vnd.ms-excel', required: true) %></br>
+  <p>What Row/Column do your locations start in?</p>
+  <%= label_tag('Row: ') %>			
+  <%= number_field(:row, nil, min: 0, required: true) %>
+  <%= label_tag('Column: ') %>			
+  <%= number_field(:col, nil, min: 0, required: true) %></br>
+  <p></p>
+  <%= submit_tag('Geocode') %>
+<% end %>

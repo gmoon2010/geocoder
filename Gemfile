@@ -1,5 +1,8 @@
 source 'https://rubygems.org'
 
+gem 'spreadsheet'
+gem 'geocoder'
+gem 'nprogress-rails'
 
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
 gem 'rails', '4.1.4'

@@ -1,5 +1,9 @@
 Rails.application.routes.draw do
   get 'geocode_pages/home'
+  post 'geocode_pages/home'
+
+  post 'geocode_pages/geocode'
+
   
   # The priority is based upon order of creation: first created -> highest priority.
   # See how all your routes lay out with "rake routes".
