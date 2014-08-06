@@ -2,6 +2,7 @@ Rails.application.routes.draw do
   get 'geocode_pages/home'
   post 'geocode_pages/home'
 
+  get 'geocode_pages/geocode'
   post 'geocode_pages/geocode'
 
   

@@ -9,6 +9,13 @@ class GeocodePagesController < ApplicationController
 	@books_in = []
 	
 	def home
+		Dir["#{Dir.pwd}/tmp/books/*"].each do |filename|
+			File.open(filename) do |file|
+				if(file.mtime + 10.minutes >= Time.now)
+					File.delete(filename)
+				end
+			end
+		end
 	end
 	
 	def geocode
@@ -19,6 +26,7 @@ class GeocodePagesController < ApplicationController
 		test = GeocodeController.new(row, col, books_in, filename)
 		test.geocode
 		
-		send_file "#{filename.split('.')[0]}_geocoded.xls", :type=>"application/vnd.ms-excel", :x_sendfile=>true
+		send_file("#{Dir.pwd}/tmp/books/#{filename.split('.')[0]}_geocoded.xls", 
+			:type=>"application/vnd.ms-excel", :x_sendfile=>true)
 	end
 end

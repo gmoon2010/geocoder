@@ -190,7 +190,8 @@ class GeocodeController
       end
     end
     
-    @book_out.write("#{@filename.split('.')[0]}_geocoded.xls")
+    
+	@book_out.write("#{Dir.pwd}/tmp/books/#{@filename.split('.')[0]}_geocoded.xls")
   end
   
   def copy_sheet
