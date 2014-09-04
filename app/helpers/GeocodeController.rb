@@ -1,6 +1,7 @@
 require 'pathname'
 require 'spreadsheet'
 require 'geocoder'
+require 'gon'
 
 #*******GEOCODER INFO************
 # Site: https://github.com/alexreisner/geocoder#google-google-google_premier
@@ -13,11 +14,12 @@ require 'geocoder'
 #*******GEOCODER INFO************
 
 class GeocodeController
-  BUFFER_SIZE = 1000
+  BUFFER_SIZE = 10000
   FIXNUM_MAX = (2**(0.size * 8 -2) -1)
   @@keys = {}
   
-  def initialize(row, col, book_in, filename)
+  def initialize(row, col, book_in, filename, percent_done)
+  	@percent_done = percent_done
   	@filename = filename
     @utils = []
     @key_order = []
@@ -217,162 +219,165 @@ class GeocodeController
   private :read_keys, :sort_keys
   
   class GeocodeUtil
-  @@total_vals = 0
-  @@sum_of_rates = 0
-  @@geocoded_count = 0
-  @@rate_count = 0
-  @@vals_left = nil
-  @@keys = nil
-  @@current_key = nil
-  @@avg_rate = nil
-  @@const_start_time = nil
-  @@last_print_time = nil
-  @@first_print = true
+	  @@total_vals = 0
+	  @@sum_of_rates = 0
+	  @@geocoded_count = 0
+	  @@rate_count = 0
+	  @@vals_left = nil
+	  @@keys = nil
+	  @@current_key = nil
+	  @@avg_rate = nil
+	  @@const_start_time = nil
+	  @@last_print_time = nil
+	  @@first_print = true
   
-  Geocoder::Configuration.always_raise << Geocoder::OverQueryLimitError
+	  Geocoder::Configuration.always_raise << Geocoder::OverQueryLimitError
   
-  def print_info
-    @@geocoded_count += 1
-    @@rate_count += 1
-    end_time = Time.now
-    elapsed = "#{Time.at(end_time - @@const_start_time).gmtime.strftime('%R:%S')}".split(":")
-    rate = (@@geocoded_count/((end_time - @@const_start_time)/60))
-    @@sum_of_rates += rate
-    @@avg_rate = @@sum_of_rates/@@rate_count
-    @@keys[@@current_key][1] -= 1
-    
-    if @@avg_rate > 0
-      time_left = "#{Time.at((@@vals_left/@@avg_rate) * 60).gmtime.strftime('%R:%S')}".split(":")
-    else
-      time_left = "inf"
-    end
-    
-    if(@@first_print || (end_time - @@last_print_time >= 1))
-      @@last_print_time = Time.now
-      @@first_print = false
-      
-      puts "\033c"
-      puts "------------------------------------------------------"
-      puts "Geocoding #{@@vals_left} entries."
-      puts "Elapsed time: #{elapsed[0]} hours, #{elapsed[1]} minutes, #{elapsed[2]} seconds."
-      puts "Estimated Time Left: #{time_left[0]} hours, #{time_left[1]} minutes, #{time_left[2]} seconds."
-      puts "Rate: #{@@avg_rate.to_s[0...5]} queries/minute"
-      
-      if(@@current_key != 'nominatim')
-        puts "Using #{@@current_key} service - #{@@keys[@@current_key][1]} queries left."
-      else
-        puts "Using #{@@current_key} service - infinite queries left."
-      end
-      puts "------------------------------------------------------"
-    end
-  end
+	  def print_info
+		@@geocoded_count += 1
+		@@rate_count += 1
+		end_time = Time.now
+		elapsed = "#{Time.at(end_time - @@const_start_time).gmtime.strftime('%R:%S')}".split(":")
+		rate = (@@geocoded_count/((end_time - @@const_start_time)/60))
+		@@sum_of_rates += rate
+		@@avg_rate = @@sum_of_rates/@@rate_count
+		@@keys[@@current_key][1] -= 1
+		@percent_done = Float((@@total_vals - @@vals_left))/Float(@@total_vals) * 100
+	
+		if @@avg_rate > 0
+		  time_left = "#{Time.at((@@vals_left/@@avg_rate) * 60).gmtime.strftime('%R:%S')}".split(":")
+		else
+		  time_left = "inf"
+		end
+	
+		if(@@first_print || (end_time - @@last_print_time >= 1))
+		  @@last_print_time = Time.now
+		  @@first_print = false
+	  
+		  puts "\033c"
+		  puts "------------------------------------------------------"
+		  puts "#{@percent_done.class}"
+		  puts "#{@percent_done}% done"
+		  puts "Geocoding #{@@vals_left} entries."
+		  puts "Elapsed time: #{elapsed[0]} hours, #{elapsed[1]} minutes, #{elapsed[2]} seconds."
+		  puts "Estimated Time Left: #{time_left[0]} hours, #{time_left[1]} minutes, #{time_left[2]} seconds."
+		  puts "Rate: #{@@avg_rate.to_s[0...5]} queries/minute"
+	  
+		  if(@@current_key != 'nominatim')
+			puts "Using #{@@current_key} service - #{@@keys[@@current_key][1]} queries left."
+		  else
+			puts "Using #{@@current_key} service - infinite queries left."
+		  end
+		  puts "------------------------------------------------------"
+		end
+	  end
   
-  def geocode_val(val, count)
-    count += 1
+	  def geocode_val(val, count)
+		count += 1
 
-    begin
-      lat_long = Geocoder.coordinates(val)
-      if(!lat_long.nil?)
-        @geocoded_vals.push(lat_long)
-      else
-        @geocoded_vals.push(["", ""])
-      end 
-      
-       @@vals_left -= 1
-    rescue Geocoder::OverQueryLimitError   
-      if(count < 3)
-        sleep(3)
-        geocode_val(val, count)
-      else
-        puts "Error geocoding #{val}. Skipping."
-        @geocoded_vals.push(["", ""])
-         @@vals_left -= 1
-        sleep(3)
-      end
-    end 
-    
-    print_info
-  end
-    
-  def geocode_one(key)
-    @@current_key = key
-    
-    configure
-    get_const_start
-    
-    @vals.each do |val|
-      geocode_val(val, 0)
-    end
-    
-    return @geocoded_vals
-  end
+		begin
+		  lat_long = Geocoder.coordinates(val)
+		  if(!lat_long.nil?)
+			@geocoded_vals.push(lat_long)
+		  else
+			@geocoded_vals.push(["", ""])
+		  end 
+	  
+		   @@vals_left -= 1
+		rescue Geocoder::OverQueryLimitError   
+		  if(count < 3)
+			sleep(3)
+			geocode_val(val, count)
+		  else
+			puts "Error geocoding #{val}. Skipping."
+			@geocoded_vals.push(["", ""])
+			 @@vals_left -= 1
+			sleep(3)
+		  end
+		end 
+	
+		print_info
+	  end
+	
+	  def geocode_one(key)
+		@@current_key = key
+	
+		configure
+		get_const_start
+	
+		@vals.each do |val|
+		  geocode_val(val, 0)
+		end
+	
+		return @geocoded_vals
+	  end
   
-  def geocode_mult(key_order)
-    key_idx = 3
-    @@current_key = key_order[key_idx]
+	  def geocode_mult(key_order)
+		key_idx = 3
+		@@current_key = key_order[key_idx]
  
-    configure
-    get_const_start
-    count = 0
-    
-    while(count < @vals.length)
-      val = @vals[count]
-      if(@@keys[@@current_key][1] > 0 || @@current_key == 'nominatim')
-         geocode_val(val, 0)
-         count += 1
-      elsif(@@keys[@@current_key][1] == 0 && @@current_key != 'nominatim')
-        key_idx -= 1
-        @@current_key = key_order[key_idx]
-        configure
-      end
-    end
+		configure
+		get_const_start
+		count = 0
+	
+		while(count < @vals.length)
+		  val = @vals[count]
+		  if(@@keys[@@current_key][1] > 0 || @@current_key == 'nominatim')
+			 geocode_val(val, 0)
+			 count += 1
+		  elsif(@@keys[@@current_key][1] == 0 && @@current_key != 'nominatim')
+			key_idx -= 1
+			@@current_key = key_order[key_idx]
+			configure
+		  end
+		end
 
-    return @geocoded_vals
-  end
+		return @geocoded_vals
+	  end
   
-  def get_const_start
-    if(@@const_start_time.nil?)
-      @@const_start_time = Time.now
-    end
-  end
+	  def get_const_start
+		if(@@const_start_time.nil?)
+		  @@const_start_time = Time.now
+		end
+	  end
   
-  def initialize(vals)
-    @vals = []
-    @geocoded_vals = []
-    @vals = vals
-  end
+	  def initialize(vals)
+		@vals = []
+		@geocoded_vals = []
+		@vals = vals
+	  end
   
-  def self.total_vals
-    return @@total_vals
-  end
+	  def self.total_vals
+		return @@total_vals
+	  end
   
-  def self.set_total_vals(x)
-    @@total_vals = x
-    @@vals_left = x
-  end
+	  def self.set_total_vals(x)
+		@@total_vals = x
+		@@vals_left = x
+	  end
   
-  def self.keys(x)
-    @@keys = x
-  end
+	  def self.keys(x)
+		@@keys = x
+	  end
   
-  def self.is_int?(x)
-    int_patt = /\A[0-9]+\z/
-    
-    return x.match(int_patt)
-  end
+	  def self.is_int?(x)
+		int_patt = /\A[0-9]+\z/
+	
+		return x.match(int_patt)
+	  end
   
-  def get_vals
-    return @vals
-  end
+	  def get_vals
+		return @vals
+	  end
   
-  def configure
-    Geocoder.configure(
-      :lookup => @@current_key.to_sym,
-      :api_key => @@keys[@@current_key][0],
-      :timeout => 5
-    )
-  end
-end
+	  def configure
+		Geocoder.configure(
+		  :lookup => @@current_key.to_sym,
+		  :api_key => @@keys[@@current_key][0],
+		  :timeout => 5
+		)
+	  end
+	end
 end
 
 

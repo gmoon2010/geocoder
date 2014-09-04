@@ -1,5 +1,8 @@
+<%= include_gon %>
 <script type="text/javascript">
 	var xmlhttp, percentDone, bar;
+	
+	bar = document.getElementById("progressBar");
 	
 	if (window.XMLHttpRequest){
 		// code for IE7+, Firefox, Chrome, Opera, Safari
@@ -11,11 +14,10 @@
 	}
 	
 	window.onload = setInterval(incProgressBar, 1000/24)
-
-	function incProgressBar(){
-		bar = document.getElementById("progressBar");
-		percentDone = <%= @percentDone %>;
-		document.getElementById("barVal").innerHTML = percentDone;
+	document.getElementById("barVal").innerHTML = 1 
+	
+	function incProgressBar()
+	{
 		
 	};
 </script>
@@ -34,7 +36,3 @@
   <%= submit_tag('Geocode') %>
 <% end %>
 <p id = 'demo'></p>
-<button type="button">Click Me!</button>
-
-<progress value="0" max = "100" id="progressBar"></progress>
-<p id="barVal"></p>
